@@ -1,0 +1,4 @@
+SamAccountName;GivenName;Surname;Department;OU
+lab.max;Max;Beispiel;IT;OU=IT,DC=firma,DC=local
+lab.lena;Lena;Demo;Verwaltung;OU=Verwaltung,DC=firma,DC=local
+lab.ali;Ali;Muster;Personal;OU=Personal,DC=firma,DC=local

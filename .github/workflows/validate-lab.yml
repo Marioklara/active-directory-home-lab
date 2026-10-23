@@ -1,0 +1,49 @@
+name: Validate Active Directory Home Lab
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  static-tests:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(Get-ChildItem -Path scripts -Filter '*.ps1')
+          if ($files.Count -eq 0) { throw 'Keine PowerShell-Skripte vorhanden.' }
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Host $_.ToString() }
+              throw "PowerShell-Syntaxfehler: $($file.Name)"
+            }
+            Write-Host "OK: $($file.Name)"
+          }
+
+      - name: Check CSV samples and README links
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            'examples/users.example.csv' = 'SamAccountName;GivenName;Surname;Department;OU'
+            'examples/group-members.example.csv' = 'SamAccountName;GroupName'
+          }
+          foreach ($entry in $headers.GetEnumerator()) {
+            $actual = Get-Content -LiteralPath $entry.Key -Encoding utf8 -TotalCount 1
+            if ($actual -cne $entry.Value) { throw "CSV-Header falsch: $($entry.Key)" }
+          }
+          $readme = Get-Content -LiteralPath README.md -Raw -Encoding utf8
+          foreach ($m in [regex]::Matches($readme, '\]\(([^)]+)\)')) {
+            $target = $m.Groups[1].Value
+            if ($target -match '^(https?://|#)') { continue }
+            if (-not (Test-Path -LiteralPath $target)) { throw "Fehlender Link: $target" }
+          }
+          Write-Host 'CSV-Header und README-Links OK.'
